@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+    <head>
+        <meta charset="utf-8">
+        <title>Multi Line Chart Demo</title>
+        <script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+<body>
+    <div id="container" class="svg-container"></div>
+
+<script>
+//------------------------1. DEFINITION-------------------------//
+//-----------------------------SVG-------------------------------//
+//Using standard svg configurations
+const width = 960;
+const height = 500;
+const margin = 5;
+const padding = 5;
+const adj = 30;
+var color = d3.scaleOrdinal(d3.schemeCategory10); //Using d3 colorscheme to randomly and dynamicaly use color
+// Appending SVG 
+const svg = d3.select("div#container").append("svg")
+    .attr("preserveAspectRatio", "xMinYMin meet")
+    .attr("viewBox", "-"
+          + adj + " -"
+          + adj + " "
+          + (width + adj *3) + " "
+          + (height + adj*3))
+    .style("padding", padding)
+    .style("margin", margin)
+    .classed("svg-content", true);
+
+//-----------------------------DATA------------------------------//
+const timeConv = d3.timeParse("%Y");
+const dataset = d3.csv("data.csv");
+dataset.then( (data) => {
+    const graphdata = data.columns.slice(1).map( (id) => {
+        return {
+            id: id,
+            values: data.map( (d)=>{
+                return {
+                    year: timeConv(d.year),
+                    measurement: +d[id]
+                };
+            })
+        };
+    });
+
+console.log("Column headers", data.columns);
+console.log("Column headers without year", data.columns.slice(1));
+// returns the sliced dataset
+console.log("graphdata",graphdata);  
+// returns the first slice
+console.log("First slice",graphdata[0]);
+// returns the array in the first slice
+console.log("A array",graphdata[0].values);     
+// returns the array's length
+console.log("Array length",(graphdata[0].values).length);
+
+//----------------------------SCALES-----------------------------//
+//Defining range
+const xScale = d3.scaleTime().range([0,width]);
+const yScale = d3.scaleLinear().rangeRound([height, 0]);
+//X axis scales year data 
+xScale.domain(d3.extent(data, (d) => {
+    return timeConv(d.year)}));
+//Y axis scales from min to max value of the given data range
+yScale.domain([
+    d3.min(graphdata, (c) => {
+    return d3.min(c.values, (d) => {
+        return d.measurement - 5; });
+    }),
+    d3.max(graphdata, (c) => {
+    return d3.max(c.values, (d) => {
+        return d.measurement + 5; });
+    })
+]);
+
+//-----------------------------AXES------------------------------//
+
+const yaxis = d3.axisLeft()
+    .ticks((graphdata[0].values).length)
+    .scale(yScale);
+
+const xaxis = d3.axisBottom()
+    .ticks(d3.timeYear.every(1))
+    .tickFormat(d3.timeFormat('%Y'))
+    .scale(xScale);
+//----------------------------LINES------------------------------//
+const line = d3.line()
+    .x( (d) => { return xScale(d.year); })
+    .y( (d) => { return yScale(d.measurement); });
+
+let id = 0;
+const ids = () => {
+    return "line-"+id++;
+}
+//-------------------------2. DRAWING----------------------------//
+
+//-----------------------------AXES------------------------------//
+svg.append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xaxis);
+
+svg.append("g")
+    .attr("class", "axis")
+    .call(yaxis);
+//----------------------------LINES------------------------------//
+const lines = svg.selectAll("lines")
+    .data(graphdata)
+    .enter()
+    .append("g");
+
+    lines.append("path")
+    .attr("class", ids)
+    .attr("d", (d) => { return line(d.values); })
+    .style("stroke", function(d) {
+      return color(d.id); //Color populated randomly based on line ID (using d3.colorscheme)
+    })
+    .style("fill", "none");
+
+    lines.append("text")
+    .attr("class","line_label")
+    .datum( (d) => {
+        return {
+            id: d.id,
+            value: d.values[d.values.length - 1]}; })
+    .attr("transform", (d) => {
+            return "translate(" + (xScale(d.value.year) + 10)  
+            + "," + (yScale(d.value.measurement) + 5 ) + ")";})
+    .attr("x", 5)
+    .text( (d) => { return ("Line No:" + d.id); });
+
+
+//----------------------------CIRCLES in LINES------------------//
+ /*   var selectCircle = svg.selectAll(".circle")
+        .data(graphdata[0].values);
+
+    selectCircle.enter().append("circle")
+        .attr("class", "circle")
+        .attr("r", 10)
+        .attr("cx", function(d) {
+            return xScale(d.year)
+        })
+        .attr("cy", function(d) {
+            return yScale(d.measurement)
+        })
+        .attr("fill", "#FFC300");*/
+
+//--------------------ADDING AREA--------------------------//
+const maxId =  d3.min(graphdata, (c) => {
+
+   return d3.entries(c.values) // create an array of key, value objects
+    // sort by value descending
+            .sort(function(a, b) { 
+                return b.value.measurement - a.value.measurement; })[0];  //Basically sorting and taking 1st element with its LINE ID     
+    });
+console.log("MAx Line" , maxId);
+
+const minID =  d3.min(graphdata, (c) => {
+
+    return d3.entries(c.values) // create an array of key, value objects
+    // sort by value descending
+            .sort(function(a, b) { 
+                return a.value.measurement - b.value.measurement; })[0];  //Basically sorting and taking 1st element with its LINE ID     
+    });
+console.log("MIN Line" , minID);
+
+
+svg.append("path")
+.datum(graphdata[1].values)
+.attr("fill", "grey")
+.attr("fill-opacity", .3)
+.attr("stroke", "none")
+.attr("d", d3.area()
+        .x(function(d) { ; return xScale(d.year) })
+        .y0( function(d , i) { 
+            return yScale(graphdata[0].values[i].measurement) })
+        .y1(function(d,i) {
+            return yScale(d.measurement) }))
+
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+/* AXIS */
+/* ticks */
+.axis line{
+    stroke: #706f6f;
+    stroke-width: 0.5;
+    shape-rendering: crispEdges;
+}
+    
+/* axis path */
+.axis path {
+    stroke: #706f6f;
+    stroke-width: 0.7;
+    shape-rendering: crispEdges;
+}
+
+/* axis text */
+.axis text {
+    fill: #2b2929;
+    font-family: Georgia;
+    font-size: 120%;
+}
+
+
+.line_label {
+    fill: #2b2929;
+    font-family: Georgia;
+    font-size: 80%;
+    }
